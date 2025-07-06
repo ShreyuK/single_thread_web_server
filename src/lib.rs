@@ -10,6 +10,8 @@ pub struct ThreadPool {
 
 struct Job;
 
+type Job = Box<dyn FnOnce() + Send + 'static>;
+
 impl ThreadPool {
     /// The `new` function will panic if the size is zero.
     pub fn new(size: usize) -> ThreadPool {
@@ -32,6 +34,9 @@ impl ThreadPool {
     where
         F: FnOnce() + Send + 'static,
     {
+        let job = Box::new(f);
+
+        self.sender.send(job).unwrap();
     }
 }
 
