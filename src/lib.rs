@@ -1,3 +1,5 @@
+#![allow(unused)]
+fn main() {
 use std::{
     sync::{Arc, Mutex, mpsc},
     thread,
@@ -7,8 +9,6 @@ pub struct ThreadPool {
     workers: Vec<Worker>,
     sender: mpsc::Sender<Job>,
 }
-
-struct Job;
 
 type Job = Box<dyn FnOnce() + Send + 'static>;
 
@@ -40,6 +40,16 @@ impl ThreadPool {
     }
 }
 
+impl Drop for ThreadPool {
+    fn drop(&mut self) {
+        for worker in self.workers.drain(..) {
+            println!("Shutting down worker {}", worker.id);
+
+            worker.thread.join().unwrap();
+        }
+    }
+}
+
 struct Worker {
     id: usize,
     thread: thread::JoinHandle<()>,
@@ -59,4 +69,5 @@ impl Worker {
 
         Worker { id, thread }
     }
+}
 }
