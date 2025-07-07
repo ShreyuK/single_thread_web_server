@@ -7,21 +7,12 @@ pub struct ThreadPool {
     workers: Vec<Worker>,
     sender: Option<mpsc::Sender<Job>>,
 }
-// --snip--
 
 type Job = Box<dyn FnOnce() + Send + 'static>;
 
 impl ThreadPool {
-    /// Create a new ThreadPool.
-    ///
-    /// The size is the number of threads in the pool.
-    ///
-    /// # Panics
-    ///
     /// The `new` function will panic if the size is zero.
     pub fn new(size: usize) -> ThreadPool {
-        // --snip--
-
         assert!(size > 0);
 
         let (sender, receiver) = mpsc::channel();
@@ -71,11 +62,19 @@ impl Worker {
     fn new(id: usize, receiver: Arc<Mutex<mpsc::Receiver<Job>>>) -> Worker {
         let thread = thread::spawn(move || {
             loop {
-                let job = receiver.lock().unwrap().recv().unwrap();
+                let message = receiver.lock().unwrap().recv();
 
-                println!("Worker {id} got a job; executing.");
+                match message {
+                    Ok(job) => {
+                        println!("Worker {id} got a job; executing.");
 
-                job();
+                        job();
+                    }
+                    Err(_) => {
+                        println!("Worker {id} disconnected; shutting down.");
+                        break;
+                    }
+                }
             }
         });
 
