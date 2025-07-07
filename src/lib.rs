@@ -1,5 +1,3 @@
-#![allow(unused)]
-fn main() {
 use std::{
     sync::{Arc, Mutex, mpsc},
     thread,
@@ -7,14 +5,23 @@ use std::{
 
 pub struct ThreadPool {
     workers: Vec<Worker>,
-    sender: mpsc::Sender<Job>,
+    sender: Option<mpsc::Sender<Job>>,
 }
+// --snip--
 
 type Job = Box<dyn FnOnce() + Send + 'static>;
 
 impl ThreadPool {
+    /// Create a new ThreadPool.
+    ///
+    /// The size is the number of threads in the pool.
+    ///
+    /// # Panics
+    ///
     /// The `new` function will panic if the size is zero.
     pub fn new(size: usize) -> ThreadPool {
+        // --snip--
+
         assert!(size > 0);
 
         let (sender, receiver) = mpsc::channel();
@@ -27,7 +34,10 @@ impl ThreadPool {
             workers.push(Worker::new(id, Arc::clone(&receiver)));
         }
 
-        ThreadPool { workers, sender }
+        ThreadPool {
+            workers,
+            sender: Some(sender),
+        }
     }
 
     pub fn execute<F>(&self, f: F)
@@ -36,12 +46,14 @@ impl ThreadPool {
     {
         let job = Box::new(f);
 
-        self.sender.send(job).unwrap();
+        self.sender.as_ref().unwrap().send(job).unwrap();
     }
 }
 
 impl Drop for ThreadPool {
     fn drop(&mut self) {
+        drop(self.sender.take());
+
         for worker in self.workers.drain(..) {
             println!("Shutting down worker {}", worker.id);
 
@@ -69,5 +81,4 @@ impl Worker {
 
         Worker { id, thread }
     }
-}
 }
